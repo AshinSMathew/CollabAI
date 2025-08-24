@@ -1,5 +1,3 @@
-import { generateText } from "ai"
-import { createGroq } from "@ai-sdk/groq"
 import { messageService } from "./message-service"
 
 export interface AIContext {
@@ -12,48 +10,24 @@ export interface AIContext {
   }>
 }
 
-const groqApiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY
-
-if (!groqApiKey) {
-  console.warn("GROQ_API_KEY environment variable is not set. AI features will not work properly.")
-}
-
-const groq = createGroq({
-  apiKey: groqApiKey,
-})
-
 export const aiService = {
   async generateResponse(prompt: string, context: AIContext): Promise<string> {
     try {
-      if (!groqApiKey) {
-        throw new Error("Groq API key is not configured. Please set the GROQ_API_KEY environment variable.")
-      }
-
-      const contextMessages = context.recentMessages
-        .slice(-5)
-        .map((msg) => `${msg.senderName}: ${msg.content}`)
-        .join("\n")
-
-      const systemPrompt = `You are CollabAI, a helpful AI assistant in a collaborative chat room called "${context.roomName}". 
-You help users with questions, provide information, assist with tasks, and facilitate collaboration.
-
-Recent conversation context:
-${contextMessages}
-
-Guidelines:
-- Be helpful, friendly, and concise
-- Provide accurate information
-- If you're unsure about something, say so
-- Help facilitate collaboration between team members
-- Keep responses conversational and appropriate for a chat environment`
-
-      const { text } = await generateText({
-        model: groq("llama-3.1-8b-instant"),
-        system: systemPrompt,
-        prompt: prompt,
+      const response = await fetch('/api/ai/response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, context }),
       })
 
-      return text
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data.response
     } catch (error) {
       console.error("Error generating AI response:", error)
       return "I'm sorry, I'm having trouble responding right now. Please try again later."
@@ -68,6 +42,7 @@ Guidelines:
         roomId,
         senderId: "ai-assistant",
         senderName: "CollabAI",
+        senderAvatar: "/ai-robot-assistant.png",
         content: response,
         type: "ai",
       })
@@ -77,6 +52,7 @@ Guidelines:
         roomId,
         senderId: "ai-assistant",
         senderName: "CollabAI",
+        senderAvatar: "/ai-robot-assistant.png",
         content: "I encountered an error while processing your request. Please try again.",
         type: "ai",
       })
