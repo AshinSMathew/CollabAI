@@ -43,7 +43,6 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
 
     setIsLoading(true)
     try {
-      // Send user message
       await messageService.sendMessage({
         roomId,
         senderId: user.uid,
@@ -55,7 +54,6 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
       setMessage("")
       onMessageSent?.()
 
-      // Trigger AI response if needed
       if (shouldTriggerAI) {
         setIsAIResponding(true)
         onAITyping?.(true)
@@ -70,12 +68,16 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
           })),
         }
 
-        // Add a small delay to make AI response feel more natural
         setTimeout(async () => {
           try {
             await aiService.sendAIResponse(roomId, aiPrompt, context)
           } catch (error) {
             console.error("AI response error:", error)
+            toast({
+              title: "AI Error",
+              description: "Failed to get AI response. Please check your API key configuration.",
+              variant: "destructive",
+            })
           } finally {
             setIsAIResponding(false)
             onAITyping?.(false)
@@ -91,51 +93,6 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
       })
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !user) return
-
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select a file smaller than 10MB.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsFileUploading(true)
-    try {
-      await messageService.sendFileMessage(
-        roomId,
-        user.uid,
-        user.displayName || "Anonymous",
-        file,
-        user.photoURL || undefined,
-      )
-
-      toast({
-        title: "File uploaded",
-        description: "Your file has been shared successfully.",
-      })
-
-      onMessageSent?.()
-    } catch (error) {
-      console.error("Error uploading file:", error)
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload file. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsFileUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
     }
   }
 
@@ -167,36 +124,6 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
 
       {/* Message Input */}
       <div className="flex items-end gap-2 p-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={handleFileUpload}
-          className="hidden"
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-        />
-
-        {/* Mobile AI Toggle */}
-        {isMobile && (
-          <Button
-            variant={aiEnabled ? "default" : "outline"}
-            size="icon"
-            onClick={() => setAiEnabled(!aiEnabled)}
-            className={cn("flex-shrink-0", aiEnabled && "bg-accent text-accent-foreground")}
-          >
-            <Bot className="h-4 w-4" />
-          </Button>
-        )}
-
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isFileUploading}
-          className="flex-shrink-0"
-        >
-          {isFileUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-        </Button>
-
         <div className="flex-1 relative">
           <Input
             ref={inputRef}

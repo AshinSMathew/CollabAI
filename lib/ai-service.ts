@@ -1,5 +1,5 @@
 import { generateText } from "ai"
-import { groq } from "@ai-sdk/groq"
+import { createGroq } from "@ai-sdk/groq"
 import { messageService } from "./message-service"
 
 export interface AIContext {
@@ -12,11 +12,25 @@ export interface AIContext {
   }>
 }
 
+const groqApiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY
+
+if (!groqApiKey) {
+  console.warn("GROQ_API_KEY environment variable is not set. AI features will not work properly.")
+}
+
+const groq = createGroq({
+  apiKey: groqApiKey,
+})
+
 export const aiService = {
   async generateResponse(prompt: string, context: AIContext): Promise<string> {
     try {
+      if (!groqApiKey) {
+        throw new Error("Groq API key is not configured. Please set the GROQ_API_KEY environment variable.")
+      }
+
       const contextMessages = context.recentMessages
-        .slice(-5) // Last 5 messages for context
+        .slice(-5)
         .map((msg) => `${msg.senderName}: ${msg.content}`)
         .join("\n")
 
@@ -37,7 +51,6 @@ Guidelines:
         model: groq("llama-3.1-8b-instant"),
         system: systemPrompt,
         prompt: prompt,
-        //maxTokens: 500,
       })
 
       return text
@@ -47,7 +60,6 @@ Guidelines:
     }
   },
 
-  // Send AI response to the chat
   async sendAIResponse(roomId: string, prompt: string, context: AIContext): Promise<void> {
     try {
       const response = await this.generateResponse(prompt, context)
@@ -56,25 +68,21 @@ Guidelines:
         roomId,
         senderId: "ai-assistant",
         senderName: "CollabAI",
-        senderAvatar: "/ai-robot-assistant.png",
         content: response,
         type: "ai",
       })
     } catch (error) {
       console.error("Error sending AI response:", error)
-      // Send error message
       await messageService.sendMessage({
         roomId,
         senderId: "ai-assistant",
         senderName: "CollabAI",
-        senderAvatar: "/ai-robot-assistant.png",
         content: "I encountered an error while processing your request. Please try again.",
         type: "ai",
       })
     }
   },
 
-  // Check if message should trigger AI response
   shouldTriggerAI(content: string): boolean {
     const lowerContent = content.toLowerCase()
     return (
@@ -87,7 +95,6 @@ Guidelines:
     )
   },
 
-  // Extract AI prompt from message
   extractAIPrompt(content: string): string {
     const prompt = content
       .replace(/@ai/gi, "")
