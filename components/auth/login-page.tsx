@@ -35,22 +35,6 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Features */}
-        <div className="grid gap-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border">
-            <MessageSquare className="h-5 w-5 text-primary" />
-            <span className="text-sm">Real-time messaging</span>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border">
-            <Bot className="h-5 w-5 text-accent" />
-            <span className="text-sm">AI-powered assistance</span>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border">
-            <Users className="h-5 w-5 text-secondary" />
-            <span className="text-sm">Team collaboration</span>
-          </div>
-        </div>
-
         {/* Login Card */}
         <Card className="shadow-xl animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-300">
           <CardHeader className="text-center">
