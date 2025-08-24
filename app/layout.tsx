@@ -17,9 +17,9 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "CollabAI - Collaborative AI Chat",
+  title: "CollabAI",
   description: "Real-time collaborative chat with AI assistance",
-  generator: "v0.app",
+  generator: "Ashin Sabu Mathew",
 }
 
 export default function RootLayout({
