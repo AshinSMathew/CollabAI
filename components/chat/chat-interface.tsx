@@ -6,8 +6,10 @@ import { MessageBubble } from "./message-bubble"
 import { MessageInput } from "./message-input"
 import { ParticipantList } from "./participant-list"
 import { TypingIndicator } from "./typing-indicator"
-import { ArrowLeft, Copy, Check, Users, Settings } from "lucide-react"
+import { ArrowLeft, Copy, Check, Users, Settings, Lock, Unlock } from "lucide-react"
 import { messageService } from "@/lib/message-service"
+import { encryptionService } from "@/lib/encryption-service"
+import { keyService } from "@/lib/key-service"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
@@ -25,10 +27,43 @@ export function ChatInterface({ room, onLeaveRoom }: ChatInterfaceProps) {
   const [copied, setCopied] = useState(false)
   const [showParticipants, setShowParticipants] = useState(false)
   const [isAITyping, setIsAITyping] = useState(false)
+  const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { user } = useAuthContext()
   const { toast } = useToast()
   const isMobile = useMobile()
+
+  useEffect(() => {
+    const initializeEncryption = async () => {
+      if (!user) return
+
+      // Try to get existing key
+      let key = await keyService.getRoomKey(room.id, user.uid)
+      
+      if (!key) {
+        // Generate new key if none exists
+        key = encryptionService.generateKey()
+        encryptionService.setRoomKey(room.id, key)
+        
+        // Store the key for future use
+        await keyService.storeRoomKey(room.id, key, user.uid)
+        setIsEncryptionEnabled(true)
+        toast({
+          title: "Encryption enabled",
+          description: "Messages in this room are now encrypted.",
+        })
+      } else {
+        encryptionService.setRoomKey(room.id, key)
+        setIsEncryptionEnabled(true)
+      }
+    }
+
+    initializeEncryption()
+
+    return () => {
+      encryptionService.removeRoomKey(room.id)
+    }
+  }, [room.id, user, toast])
 
   useEffect(() => {
     const unsubscribe = messageService.subscribeToMessages(room.id, (newMessages) => {
@@ -102,6 +137,15 @@ export function ChatInterface({ room, onLeaveRoom }: ChatInterfaceProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            {isEncryptionEnabled ? (
+              <Lock className="h-3 w-3 text-green-500" />
+            ) : (
+              <Unlock className="h-3 w-3 text-amber-500" />
+            )}
+            <span>{isEncryptionEnabled ? "Encrypted" : "Unencrypted"}</span>
+          </div>
+          
           {isMobile && (
             <Button
               variant="outline"
@@ -137,6 +181,11 @@ export function ChatInterface({ room, onLeaveRoom }: ChatInterfaceProps) {
                   <div>
                     <p className="text-lg font-medium">Welcome to {room.name}!</p>
                     <p className="text-sm mt-2">Start the conversation or try typing "@ai" to get help from CollabAI</p>
+                    {isEncryptionEnabled && (
+                      <p className="text-xs mt-1 text-green-500 flex items-center justify-center gap-1">
+                        <Lock className="h-3 w-3" /> Messages are encrypted
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

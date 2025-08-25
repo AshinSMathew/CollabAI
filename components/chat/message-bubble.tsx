@@ -1,10 +1,11 @@
 "use client"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Download, FileText, ImageIcon, Video, Music, Bot } from "lucide-react"
+import { Bot, Lock } from "lucide-react"
 import type { Message } from "@/types/message"
 import { cn } from "@/lib/utils"
+import { encryptionService } from "@/lib/encryption-service"
+import { useState } from "react"
 
 interface MessageBubbleProps {
   message: Message
@@ -14,21 +15,10 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isCurrentUser, showAvatar = true }: MessageBubbleProps) {
   const isAI = message.type === "ai" || message.senderId === "ai-assistant"
+  const [showEncryptionIndicator, setShowEncryptionIndicator] = useState(false)
 
-  const getFileIcon = (fileType?: string) => {
-    if (!fileType) return <FileText className="h-4 w-4" />
-
-    if (fileType.startsWith("image/")) return <ImageIcon className="h-4 w-4" />
-    if (fileType.startsWith("video/")) return <Video className="h-4 w-4" />
-    if (fileType.startsWith("audio/")) return <Music className="h-4 w-4" />
-    return <FileText className="h-4 w-4" />
-  }
-
-  const handleFileDownload = () => {
-    if (message.fileUrl) {
-      window.open(message.fileUrl, "_blank")
-    }
-  }
+  // Check if message is encrypted
+  const isEncrypted = message.isEncrypted && encryptionService.isLikelyEncrypted(message.content)
 
   return (
     <div
@@ -80,19 +70,16 @@ export function MessageBubble({ message, isCurrentUser, showAvatar = true }: Mes
                 : "bg-card text-card-foreground border rounded-bl-md",
           )}
         >
-          {message.type === "file" ? (
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-background/10">{getFileIcon(message.fileType)}</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{message.fileName}</p>
-                <p className="text-xs opacity-75">{message.content}</p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={handleFileDownload} className="hover:bg-background/20">
-                <Download className="h-3 w-3" />
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          
+          {isEncrypted && (
+            <button 
+              onClick={() => setShowEncryptionIndicator(!showEncryptionIndicator)}
+              className="text-xs opacity-70 mt-1 flex items-center gap-1"
+            >
+              <Lock className="h-3 w-3" />
+              {showEncryptionIndicator ? "Encrypted message" : "🔒"}
+            </button>
           )}
         </div>
       </div>

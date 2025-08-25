@@ -5,9 +5,10 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Paperclip, Loader2, Bot } from "lucide-react"
+import { Send, Paperclip, Loader2, Bot, Lock } from "lucide-react"
 import { messageService } from "@/lib/message-service"
 import { aiService } from "@/lib/ai-service"
+import { encryptionService } from "@/lib/encryption-service"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
@@ -34,6 +35,8 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
   const { user } = useAuthContext()
   const { toast } = useToast()
   const isMobile = useMobile()
+
+  const isEncryptionEnabled = encryptionService.getRoomKey(roomId) !== null
 
   const handleSendMessage = async () => {
     if (!user || !message.trim() || isLoading) return
@@ -152,6 +155,19 @@ export function MessageInput({ roomId, roomName, recentMessages, onMessageSent, 
         >
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
+      </div>
+
+      {/* ADD THIS SECTION: Encryption Status */}
+      <div className="flex items-center justify-between px-4 py-2 border-t">
+        <div className="text-xs text-muted-foreground">
+          {isEncryptionEnabled ? (
+            <span className="flex items-center gap-1 text-green-500">
+              <Lock className="h-3 w-3" /> Messages are encrypted
+            </span>
+          ) : (
+            "Messages are not encrypted"
+          )}
+        </div>
       </div>
 
       {/* Mobile AI Status */}

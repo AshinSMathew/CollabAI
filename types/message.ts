@@ -1,4 +1,5 @@
 export interface Message {
+  isEncrypted: boolean
   id: string
   roomId: string
   senderId: string

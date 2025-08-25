@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import type { Room, CreateRoomData } from "@/types/room"
+import { encryptionService } from './encryption-service'
+import { keyService } from './key-service'
 
 // Generate a random 6-character room code
 function generateRoomCode(): string {
@@ -21,7 +23,6 @@ function generateRoomCode(): string {
 }
 
 export const roomService = {
-  // Create a new room
   async createRoom(data: CreateRoomData): Promise<Room> {
     const roomCode = generateRoomCode()
     const roomData = {
@@ -34,6 +35,9 @@ export const roomService = {
     }
 
     const docRef = await addDoc(collection(db, "rooms"), roomData)
+    const key = encryptionService.generateKey()
+    encryptionService.setRoomKey(docRef.id, key)
+    await keyService.storeRoomKey(docRef.id, key, data.createdBy)
     return { id: docRef.id, ...roomData }
   },
 
