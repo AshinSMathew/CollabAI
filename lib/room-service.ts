@@ -13,9 +13,9 @@ import {
   type Unsubscribe,
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import type { Room, CreateRoomData } from "@/types/room"
 import { encryptionService } from './encryption-service'
 import { keyService } from './key-service'
+import type { Room, CreateRoomData } from "@/types/room"
 
 // Generate a random 6-character room code
 function generateRoomCode(): string {
@@ -23,6 +23,7 @@ function generateRoomCode(): string {
 }
 
 export const roomService = {
+  // Create a new room with encryption key
   async createRoom(data: CreateRoomData): Promise<Room> {
     const roomCode = generateRoomCode()
     const roomData = {
@@ -32,13 +33,44 @@ export const roomService = {
       createdAt: new Date(),
       participants: [data.createdBy],
       isActive: true,
+      hasEncryption: true, // Add flag to indicate room has encryption
     }
 
     const docRef = await addDoc(collection(db, "rooms"), roomData)
+    const roomId = docRef.id
+    
+    // Generate and store encryption key for the room
     const key = encryptionService.generateKey()
-    encryptionService.setRoomKey(docRef.id, key)
-    await keyService.storeRoomKey(docRef.id, key, data.createdBy)
-    return { id: docRef.id, ...roomData }
+    await keyService.storeRoomKey(roomId, key)
+    
+    return { id: roomId, ...roomData }
+  },
+
+  // Join a room by code - ensure they get the room key
+  async joinRoomByCode(roomCode: string, userId: string): Promise<Room | null> {
+    const q = query(collection(db, "rooms"), where("code", "==", roomCode.toUpperCase()), where("isActive", "==", true))
+
+    const querySnapshot = await getDocs(q)
+    if (querySnapshot.empty) {
+      return null
+    }
+
+    const roomDoc = querySnapshot.docs[0]
+    const roomData = roomDoc.data()
+    const roomId = roomDoc.id
+
+    // Add user to participants if not already in the room
+    if (!roomData.participants.includes(userId)) {
+      await updateDoc(doc(db, "rooms", roomId), {
+        participants: arrayUnion(userId),
+      })
+    }
+
+    return {
+      id: roomId,
+      ...roomData,
+      createdAt: roomData.createdAt.toDate(),
+    } as Room
   },
 
   // Get rooms created by a specific user
@@ -56,32 +88,6 @@ export const roomService = {
       ...doc.data(),
       createdAt: doc.data().createdAt.toDate(),
     })) as Room[]
-  },
-
-  // Join a room by code
-  async joinRoomByCode(roomCode: string, userId: string): Promise<Room | null> {
-    const q = query(collection(db, "rooms"), where("code", "==", roomCode.toUpperCase()), where("isActive", "==", true))
-
-    const querySnapshot = await getDocs(q)
-    if (querySnapshot.empty) {
-      return null
-    }
-
-    const roomDoc = querySnapshot.docs[0]
-    const roomData = roomDoc.data()
-
-    // Add user to participants if not already in the room
-    if (!roomData.participants.includes(userId)) {
-      await updateDoc(doc(db, "rooms", roomDoc.id), {
-        participants: arrayUnion(userId),
-      })
-    }
-
-    return {
-      id: roomDoc.id,
-      ...roomData,
-      createdAt: roomData.createdAt.toDate(),
-    } as Room
   },
 
   // Subscribe to user's created rooms

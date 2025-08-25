@@ -35,35 +35,55 @@ export function ChatInterface({ room, onLeaveRoom }: ChatInterfaceProps) {
 
   useEffect(() => {
     const initializeEncryption = async () => {
-      if (!user) return
+      if (!user || !room) return
 
-      // Try to get existing key
-      let key = await keyService.getRoomKey(room.id, user.uid)
-      
-      if (!key) {
-        // Generate new key if none exists
-        key = encryptionService.generateKey()
-        encryptionService.setRoomKey(room.id, key)
+      try {
+        let key = await keyService.getRoomKey(room.id)
         
-        // Store the key for future use
-        await keyService.storeRoomKey(room.id, key, user.uid)
-        setIsEncryptionEnabled(true)
-        toast({
-          title: "Encryption enabled",
-          description: "Messages in this room are now encrypted.",
-        })
-      } else {
+        if (!key) {
+          console.log("No room key found, generating new key for room:", room.id)
+          key = encryptionService.generateKey()
+          await keyService.storeRoomKey(room.id, key)
+          
+          toast({
+            title: "Encryption enabled",
+            description: "Messages in this room are now encrypted.",
+          })
+        }
+
         encryptionService.setRoomKey(room.id, key)
         setIsEncryptionEnabled(true)
+        
+      } catch (error) {
+        console.error("Error initializing encryption:", error)
+        setIsEncryptionEnabled(false)
+        toast({
+          title: "Encryption error",
+          description: "Could not initialize message encryption.",
+          variant: "destructive",
+        })
       }
     }
 
     initializeEncryption()
 
+    const unsubscribeKeyListener = keyService.listenForRoomKey(
+      room.id, 
+      (newKey) => {
+        if (newKey) {
+          encryptionService.setRoomKey(room.id, newKey)
+          setIsEncryptionEnabled(true)
+        }
+      }
+    )
+
     return () => {
-      encryptionService.removeRoomKey(room.id)
+      if (room) {
+        encryptionService.removeRoomKey(room.id)
+      }
+      unsubscribeKeyListener()
     }
-  }, [room.id, user, toast])
+  }, [room, user, toast])
 
   useEffect(() => {
     const unsubscribe = messageService.subscribeToMessages(room.id, (newMessages) => {
